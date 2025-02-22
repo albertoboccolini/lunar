@@ -34,7 +34,6 @@ def verify_lander_crash(self):
         self.pos.y = LANDING_PAD_TOP - self.height / 2
         self.done = True
 
-        landing_bonus = 0
         if abs(self.vel.y) < 100:
             landing_bonus = SLOW_LANDING_BONUS
         else:
