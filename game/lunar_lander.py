@@ -33,16 +33,22 @@ def verify_lander_crash(self):
     if self.pos.y + self.height / 2 >= LANDING_PAD_TOP:
         self.pos.y = LANDING_PAD_TOP - self.height / 2
         self.done = True
+        landing_bonus = SLOW_LANDING_PENALTY
 
         if abs(self.vel.y) < 100:
             landing_bonus = SLOW_LANDING_BONUS
-        else:
-            landing_bonus = SLOW_LANDING_PENALTY
 
-        # Safe landing: vertical speed less than 100 and near vertical angle
-        if abs(self.vel.y) < 100 and (abs(self.angle % 360) < 15 or abs((self.angle % 360) - 360) < 15):
+        # Only if vertical speed less than 100 and vertical angle near 15 degrees
+        safe_landing = abs(self.vel.y) < MAX_SPEED_TO_LAND and (
+                abs(self.angle % 360) < MAX_ANGLE_TO_LAND or abs((self.angle % 360) - 360) < MAX_ANGLE_TO_LAND)
+
+        if safe_landing:
             self.fitness += 1000 + landing_bonus
-        else:
+            if not hasattr(self, "win_count"):
+                self.win_count = 0
+            self.win_count += 1
+
+        if not safe_landing:
             self.fitness -= 1000 + landing_bonus
 
 
@@ -106,7 +112,8 @@ class LunarLanderEnv:
         if self.pos.x < 0:
             self.pos.x = 0
             self.vel.x = 0
-        elif self.pos.x > WINDOW_WIDTH:
+
+        if self.pos.x > WINDOW_WIDTH:
             self.pos.x = WINDOW_WIDTH
             self.vel.x = 0
 
@@ -114,6 +121,10 @@ class LunarLanderEnv:
 
         # Encouraging speed velocity minor than MAX_SPEED_TO_LAND
         if abs(self.vel.y) < MAX_SPEED_TO_LAND:
+            self.fitness += dt
+
+        # Encouraging angle minor than 15
+        if abs(self.angle % 360) < MAX_ANGLE_TO_LAND or abs((self.angle % 360) - 360) < MAX_ANGLE_TO_LAND:
             self.fitness += dt
 
         if self.fitness < 0:
@@ -170,11 +181,11 @@ class LunarLanderEnv:
         screen.blit(speed_text, (10, 40))
         screen.blit(fitness_text, (10, 70))
 
+        outcome_str = "Dangerous Landing"
         if abs(self.vel.y) < MAX_SPEED_TO_LAND and (
                 abs(self.angle % 360) < MAX_ANGLE_TO_LAND or abs((self.angle % 360) - 360) < MAX_ANGLE_TO_LAND):
             outcome_str = "Safe Landing"
-        else:
-            outcome_str = "Dangerous Landing"
+
         outcome_text = font.render(f"Status: {outcome_str}", True, (0, 0, 0))
         screen.blit(outcome_text, (10, 100))
 

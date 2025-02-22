@@ -1,7 +1,10 @@
+import os
 import pygame
 import neat
+import pickle
 from game.constants import WINDOW_WIDTH, WINDOW_HEIGHT, SIMULATION_MAX_STEPS
 from game.lunar_lander import LunarLanderEnv
+from utils import SHOULD_RENDER_SIMULATION, WIN_THRESHOLD, LUNAR_MODEL_PATH, start_game_observation
 
 
 def eval_genomes(genomes, config):
@@ -14,35 +17,36 @@ def eval_genomes(genomes, config):
     pygame.display.set_caption('Lunar')
     screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
     clock = pygame.time.Clock()
-    render = True  # Set to True to view the simulation
 
     for genome_id, genome in genomes:
-        net = neat.nn.FeedForwardNetwork.create(genome, config)
-        env = LunarLanderEnv()
+        neural_network = neat.nn.FeedForwardNetwork.create(genome, config)
+        game = LunarLanderEnv()
         steps = 0
-        while not env.done and steps < SIMULATION_MAX_STEPS:
-            # Event management and time update
-            if render:
-                delta_time = clock.tick(60) / 1000.0
-                for event in pygame.event.get():
-                    if event.type == pygame.QUIT:
-                        pygame.quit()
-                        quit()
-            else:
+
+        while not game.done and steps < SIMULATION_MAX_STEPS and getattr(game, 'win_count', 0) < WIN_THRESHOLD:
+            while not game.done and steps < SIMULATION_MAX_STEPS:
                 delta_time = 1 / 60.0
 
-            # Get state and calculate action from network
-            obs = env.get_observation()
-            output = net.activate(obs)
-            rotate_left = output[0] > 0.5
-            rotate_right = output[1] > 0.5
-            thrust = output[2] > 0.5
-            action = (rotate_left, rotate_right, thrust)
-            env.step(action, delta_time)
-            if render:
-                env.render_game(screen, delta_time)
-            steps += 1
-        genome.fitness = env.fitness
+                if SHOULD_RENDER_SIMULATION:
+                    delta_time = clock.tick(60) / 1000.0
+                    for event in pygame.event.get():
+                        if event.type == pygame.QUIT:
+                            pygame.quit()
+                            quit()
+
+                start_game_observation(game, neural_network, delta_time)
+
+                if SHOULD_RENDER_SIMULATION:
+                    game.render_game(screen, delta_time)
+                steps += 1
+
+            if getattr(game, 'win_count', 0) < WIN_THRESHOLD:
+                game.reset()
+
+        genome.fitness = game.fitness
+        genome.win_count = getattr(game, 'win_count', 0)
+        if genome.win_count > 0:
+            print(f"Genome {genome_id} has obtained {genome.win_count} wins.")
     pygame.quit()
 
 
@@ -57,8 +61,12 @@ def run_neat(config_file):
     pop.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     pop.add_reporter(stats)
-    winner = pop.run(eval_genomes, 50)
-    print("Winner:", winner)
+    winner = pop.run(eval_genomes, 100)
+    if hasattr(winner, 'win_count') and winner.win_count >= WIN_THRESHOLD:
+        os.makedirs(os.path.dirname(LUNAR_MODEL_PATH), exist_ok=True)
+        with open(LUNAR_MODEL_PATH, "wb") as f:
+            pickle.dump(winner, f)
+        print("Model saved!", winner)
 
 
 if __name__ == "__main__":
