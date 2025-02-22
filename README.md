@@ -1,6 +1,8 @@
-<a href="https://albertoboccolini.com" target="_blank" style="display: flex; justify-content: center">
-  <img width="150" height="150" src="game/images/icon.png" style="text-align: center">
-</a>
+<div  align="center">
+   <a href="https://albertoboccolini.com" target="_blank">
+      <img alt="lunar" height="150" src="game/images/icon.png">
+   </a>
+</div>
 
 # Lunar
 
