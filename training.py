@@ -10,6 +10,8 @@ def eval_genomes(genomes, config):
     with real-time rendering.
     """
     pygame.init()
+    pygame.display.set_icon(pygame.image.load('./game/images/icon.png'))
+    pygame.display.set_caption('Lunar')
     screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
     clock = pygame.time.Clock()
     render = True  # Set to True to view the simulation

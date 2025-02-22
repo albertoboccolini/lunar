@@ -2,70 +2,7 @@ import pygame
 import math
 import random
 from game.constants import WINDOW_WIDTH, WINDOW_HEIGHT, CEILING, LANDING_PAD_TOP, ROTATION_SPEED, THRUST_POWER, \
-    GRAVITY
-
-
-def make_lander_rounded(surface, color, points, radius, segments=10):
-    """
-    Draw a triangle with rounded corners inside.
-
-    - surface: the surface to draw on.
-    - color: color (RGB) of the triangle.
-    - points: list of 3 tuples (x, y) of the vertices of the triangle.
-    - radius: radius of the rounding.
-    - segments: number of segments to approximate each arc.
-    """
-
-    def get_offset_point(p_from, p_to, r):
-        # Calculate a point along the side from p_from to p_to at distance r from p_from
-        dx = p_to[0] - p_from[0]
-        dy = p_to[1] - p_from[1]
-        d = math.hypot(dx, dy)
-        if d == 0:
-            return p_from
-        return p_from[0] + (dx / d) * r, p_from[1] + (dy / d) * r
-
-    final_points = []
-    n = len(points)
-
-    for i in range(n):
-        # Get the current vertex and its adjacent ones
-        p_prev = points[i - 1]
-        p_curr = points[i]
-        p_next = points[(i + 1) % n]
-
-        # Calculate the offset points along the sides (to move the corner inside)
-        offset1 = get_offset_point(p_curr, p_prev, radius)
-        offset2 = get_offset_point(p_curr, p_next, radius)
-
-        # Calculate the angles of the two vectors starting from the vertex towards the offsets
-        angle1 = math.atan2(offset1[1] - p_curr[1], offset1[0] - p_curr[0])
-        angle2 = math.atan2(offset2[1] - p_curr[1], offset2[0] - p_curr[0])
-
-        # Ensures a positive (inner) arc; adjust the interval if necessary
-        if angle2 < angle1:
-            angle2 += 2 * math.pi
-
-        # Generate points for the arc that replaces the vertex
-        arc_points = []
-        for j in range(segments + 1):
-            t = j / segments
-            angle = angle1 + t * (angle2 - angle1)
-            arc_x = p_curr[0] + radius * math.cos(angle)
-            arc_y = p_curr[1] + radius * math.sin(angle)
-            arc_points.append((arc_x, arc_y))
-
-        # Add the first offset point and then the arc points
-        final_points.append(offset1)
-        final_points.extend(arc_points)
-        # The point offset2 will be added as the starting point of the next vertex arc
-
-    pygame.draw.polygon(surface, color, final_points)
-
-
-def draw_lander(lander_img):
-    lander_points = [(20, 0), (0, 60), (40, 60)]
-    make_lander_rounded(lander_img, (15, 23, 42), lander_points, 5)
+    GRAVITY, MAX_SPEED_TO_LAND, MAX_ANGLE_TO_LAND, SLOW_LANDING_BONUS, SLOW_LANDING_PENALTY, RANDOMIZE_LANDER_ANGLE
 
 
 def create_stars(stars):
@@ -92,15 +29,22 @@ def verify_lander_crash(self):
         self.done = True
         self.fitness -= 1000
 
+    # Landing pad
     if self.pos.y + self.height / 2 >= LANDING_PAD_TOP:
         self.pos.y = LANDING_PAD_TOP - self.height / 2
         self.done = True
 
-        # Low vertical speed (< 100 pixels/s) and almost vertical angle (±15°)
-        if abs(self.vel.y) < 100 and (abs(self.angle % 360) < 15 or abs((self.angle % 360) - 360) < 15):
-            self.fitness += 1000
+        landing_bonus = 0
+        if abs(self.vel.y) < 100:
+            landing_bonus = SLOW_LANDING_BONUS
         else:
-            self.fitness -= 1000
+            landing_bonus = SLOW_LANDING_PENALTY
+
+        # Safe landing: vertical speed less than 100 and near vertical angle
+        if abs(self.vel.y) < 100 and (abs(self.angle % 360) < 15 or abs((self.angle % 360) - 360) < 15):
+            self.fitness += 1000 + landing_bonus
+        else:
+            self.fitness -= 1000 + landing_bonus
 
 
 class LunarLanderEnv:
@@ -112,8 +56,7 @@ class LunarLanderEnv:
         self.pos = None
         self.reset()
 
-        self.lander_img = pygame.Surface((40, 60), pygame.SRCALPHA)
-        draw_lander(self.lander_img)
+        self.lander_img = pygame.image.load('game/images/lander.png').convert_alpha()
 
         self.width = 40
         self.height = 60
@@ -132,7 +75,7 @@ class LunarLanderEnv:
     def reset(self):
         self.pos = pygame.Vector2(WINDOW_WIDTH / 2, 100)
         self.vel = pygame.Vector2(0, 0)
-        self.angle = random.uniform(0, 360)
+        self.angle = random.uniform(0, RANDOMIZE_LANDER_ANGLE)
         self.done = False
         self.fitness = 0
 
@@ -169,6 +112,13 @@ class LunarLanderEnv:
             self.vel.x = 0
 
         verify_lander_crash(self)
+
+        # Encouraging speed velocity minor than MAX_SPEED_TO_LAND
+        if abs(self.vel.y) < MAX_SPEED_TO_LAND:
+            self.fitness += dt
+
+        if self.fitness < 0:
+            self.fitness = 0
 
         # Increases survival fitness (encouraging more time in flight)
         self.fitness += dt
@@ -211,4 +161,22 @@ class LunarLanderEnv:
         rotated_img = pygame.transform.rotozoom(self.lander_img, self.angle, 1)
         rect = rotated_img.get_rect(center=(self.pos.x, self.pos.y))
         screen.blit(rotated_img, rect.topleft)
+
+        # Stats
+        font = pygame.font.SysFont("Arial", 16)
+        angle_text = font.render(f"Angle: {self.angle:.2f}", True, (0, 0, 0))
+        speed_text = font.render(f"Speed: {self.vel.length():.2f}", True, (0, 0, 0))
+        fitness_text = font.render(f"Fitness: {self.fitness:.2f}", True, (0, 0, 0))
+        screen.blit(angle_text, (10, 10))
+        screen.blit(speed_text, (10, 40))
+        screen.blit(fitness_text, (10, 70))
+
+        if abs(self.vel.y) < MAX_SPEED_TO_LAND and (
+                abs(self.angle % 360) < MAX_ANGLE_TO_LAND or abs((self.angle % 360) - 360) < MAX_ANGLE_TO_LAND):
+            outcome_str = "Safe Landing"
+        else:
+            outcome_str = "Dangerous Landing"
+        outcome_text = font.render(f"Status: {outcome_str}", True, (0, 0, 0))
+        screen.blit(outcome_text, (10, 100))
+
         pygame.display.flip()
