@@ -1,15 +1,15 @@
 [NEAT]
 fitness_criterion     = max
-fitness_threshold     = 1000.0
-pop_size              = 100
+fitness_threshold = 99999999
+pop_size              = 200
 reset_on_extinction   = False
 
 [DefaultGenome]
-feed_forward            = False
+feed_forward            = True
 
 activation_default      = tanh
 activation_mutate_rate  = 0.1
-activation_options      = tanh sigmoid relu
+activation_options      = tanh
 
 aggregation_default     = sum
 aggregation_mutate_rate = 0.0
@@ -32,10 +32,10 @@ conn_delete_prob        = 0.5
 enabled_default         = True
 enabled_mutate_rate     = 0.01
 
-initial_connection      = full
+initial_connection      = full_nodirect
 
-node_add_prob           = 0.2
-node_delete_prob        = 0.2
+node_add_prob           = 0.3
+node_delete_prob        = 0.6
 
 num_inputs              = 7
 num_outputs             = 3
@@ -53,12 +53,12 @@ weight_init_mean        = 0.0
 weight_init_stdev       = 1.0
 weight_max_value        = 30.0
 weight_min_value        = -30.0
-weight_mutate_power     = 0.5
+weight_mutate_power     = 1.0
 weight_mutate_rate      = 0.4
 weight_replace_rate     = 0.1
 
 [DefaultSpeciesSet]
-compatibility_threshold = 3.0
+compatibility_threshold = 2.5
 
 [DefaultStagnation]
 species_fitness_func = max

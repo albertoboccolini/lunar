@@ -35,7 +35,7 @@ def verify_lander_crash(self):
         self.done = True
         landing_bonus = SLOW_LANDING_PENALTY
 
-        if abs(self.vel.y) < 100:
+        if abs(self.vel.y) < MAX_SPEED_TO_LAND:
             landing_bonus = SLOW_LANDING_BONUS
 
         # Only if vertical speed less than 100 and vertical angle near 15 degrees
@@ -127,11 +127,20 @@ class LunarLanderEnv:
         if abs(self.angle % 360) < MAX_ANGLE_TO_LAND or abs((self.angle % 360) - 360) < MAX_ANGLE_TO_LAND:
             self.fitness += dt
 
+        # Encouraging rotation
+        if 0 < abs(self.angle % 360) < MAX_ANGLE_TO_LAND:
+            self.fitness += dt
+
+        # Discouraging positions near the ceiling
+        distance_to_ceiling = self.pos.y - CEILING
+        if distance_to_ceiling < 50:
+            self.fitness -= (50 - distance_to_ceiling) * dt
+
         if self.fitness < 0:
             self.fitness = 0
 
         # Increases survival fitness (encouraging more time in flight)
-        self.fitness += dt
+        # self.fitness += dt
 
     def get_observation(self):
         """
