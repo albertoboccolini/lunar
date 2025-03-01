@@ -4,7 +4,7 @@ import neat
 import pickle
 from game.constants import WINDOW_WIDTH, WINDOW_HEIGHT, SIMULATION_MAX_STEPS
 from game.lunar_lander import LunarLanderEnv
-from utils import SHOULD_RENDER_SIMULATION, WIN_THRESHOLD, start_game_observation, LUNAR_MODEL_PATH
+from utils import SHOULD_RENDER_SIMULATION, start_game_observation, LUNAR_MODEL_PATH, WIN_THRESHOLD
 
 
 def eval_genomes(genomes, config):
@@ -12,6 +12,8 @@ def eval_genomes(genomes, config):
     Continuous evaluation based exclusively on what the game defines.
     - Each genome keeps being evaluated until the lander crashes or reaches 5 consecutive safe landings.
     - Fitness and win count are directly taken from the game.
+    :param genomes: List of Genome objects
+    :param config: NEAT config object
     """
     pygame.init()
     pygame.display.set_icon(pygame.image.load('./game/images/icon.png'))
@@ -45,7 +47,7 @@ def eval_genomes(genomes, config):
 
             if game.done:
                 if game.fitness <= 0:
-                    break  # Crash or unsafe landing: immediate termination
+                    break  # Immediate termination
 
                 # Safe landing
                 consecutive_wins += 1
@@ -73,27 +75,24 @@ def eval_genomes(genomes, config):
 def run_neat(config_file):
     """
     Start the NEAT training with continuous evaluation, up to 100 generations.
+    :param config_file: The file where the NEAT config is located.
     """
-
     config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
                          neat.DefaultSpeciesSet, neat.DefaultStagnation,
                          config_file)
 
-    pop = neat.Population(config)
-    pop.add_reporter(neat.StdOutReporter(True))
+    population = neat.Population(config)
+    population.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
-    pop.add_reporter(stats)
+    population.add_reporter(stats)
 
     try:
-        pop.run(eval_genomes, 100)
+        population.run(eval_genomes, 100)
     except neat.CompleteExtinctionException:
         return
 
 
 def save_winner(genome):
-    """
-    Save the best genome to disk.
-    """
     os.makedirs(os.path.dirname(LUNAR_MODEL_PATH), exist_ok=True)
     with open(LUNAR_MODEL_PATH, "wb") as f:
         pickle.dump(genome, f)
