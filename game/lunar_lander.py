@@ -23,37 +23,91 @@ def draw_landing_pad(screen):
 
 
 def verify_lander_crash(self):
+    """
+    Checks if the lander has crashed or landed, and updates its state accordingly.
+    :param self: The instance of the lander, containing its current state variables such as:
+        - vel (velocity vector, where self.vel.y represents the vertical speed)
+        - angle (current rotation angle of the lander)
+        - pos (position vector, where self.pos.y represents the altitude)
+        - fitness (score reflecting how well the lander is performing)
+    """
     # Ceiling
     if self.pos.y - self.height / 2 <= CEILING:
         self.pos.y = CEILING + self.height / 2
         self.done = True
         self.fitness -= 1000
+        return
+
+    landing_pad_left = WINDOW_WIDTH / 2 - 200
+    landing_pad_right = WINDOW_WIDTH / 2 + 200
 
     # Landing pad
-    if self.pos.y + self.height / 2 >= LANDING_PAD_TOP:
-        self.pos.y = LANDING_PAD_TOP - self.height / 2
-        self.done = True
-        landing_bonus = SLOW_LANDING_PENALTY
+    if self.pos.y + self.height / 2 < LANDING_PAD_TOP:
+        return
 
-        if abs(self.vel.y) < 100:
-            landing_bonus = SLOW_LANDING_BONUS
+    self.pos.y = LANDING_PAD_TOP - self.height / 2
+    self.done = True
 
-        # Only if vertical speed less than 100 and vertical angle near 15 degrees
-        safe_landing = abs(self.vel.y) < MAX_SPEED_TO_LAND and (
-                abs(self.angle % 360) < MAX_ANGLE_TO_LAND or abs((self.angle % 360) - 360) < MAX_ANGLE_TO_LAND)
+    if not (landing_pad_left <= self.pos.x <= landing_pad_right):
+        self.fitness -= 1000
+        return
 
-        if safe_landing:
-            self.fitness += 1000 + landing_bonus
-            if not hasattr(self, "win_count"):
-                self.win_count = 0
-            self.win_count += 1
+    landing_bonus = SLOW_LANDING_PENALTY
+    if abs(self.vel.y) < MAX_SPEED_TO_LAND:
+        landing_bonus = SLOW_LANDING_BONUS
 
-        if not safe_landing:
-            self.fitness -= 1000 + landing_bonus
+    safe_landing = abs(self.vel.y) < MAX_SPEED_TO_LAND and (
+            abs(self.angle % 360) < MAX_ANGLE_TO_LAND or abs((self.angle % 360) - 360) < MAX_ANGLE_TO_LAND
+    )
+
+    if safe_landing:
+        self.fitness += 1000 + landing_bonus
+        if not hasattr(self, "win_count"):
+            self.win_count = 0
+        self.win_count += 1
+        return
+
+    self.fitness -= 1000 + landing_bonus
+
+
+def rewards_and_penalties(self, dt):
+    """
+    Computes rewards and penalties for the lander based on its current state.
+    :param dt: The time delta for the current simulation step.
+    :param self: The instance of the lander, containing its current state variables such as:
+        - vel (velocity vector, where self.vel.y represents the vertical speed)
+        - angle (current rotation angle of the lander)
+        - pos (position vector, where self.pos.y represents the altitude)
+        - fitness (score reflecting how well the lander is performing)
+    """
+    # Encouraging speed velocity minor than MAX_SPEED_TO_LAND
+    if abs(self.vel.y) < MAX_SPEED_TO_LAND:
+        self.fitness += dt
+
+    # Encouraging angle minor than 15
+    if abs(self.angle % 360) < MAX_ANGLE_TO_LAND or abs((self.angle % 360) - 360) < MAX_ANGLE_TO_LAND:
+        self.fitness += dt
+
+    # Encouraging rotation
+    if 0 < abs(self.angle % 360) < MAX_ANGLE_TO_LAND:
+        self.fitness += dt
+
+    # Discouraging positions near the ceiling
+    distance_to_ceiling = self.pos.y - CEILING
+    if distance_to_ceiling < 50:
+        self.fitness -= (50 - distance_to_ceiling) * dt
 
 
 class LunarLanderEnv:
     def __init__(self):
+        """
+        Initialize the game environment.
+        :param self: The instance of the lander, containing its current state variables such as:
+            - vel (velocity vector, where self.vel.y represents the vertical speed)
+            - angle (current rotation angle of the lander)
+            - pos (position vector, where self.pos.y represents the altitude)
+            - fitness (score reflecting how well the lander is performing)
+        """
         self.fitness = 0
         self.done = False
         self.angle = None
@@ -70,7 +124,15 @@ class LunarLanderEnv:
         create_stars(self.stars)
 
     def update_stars(self, dt):
-        """Updates the position of the stars, sliding them from right to left."""
+        """
+        Updates the position of the stars, sliding them from right to left.
+        :param self: The instance of the lander, containing its current state variables such as:
+            - vel (velocity vector, where self.vel.y represents the vertical speed)
+            - angle (current rotation angle of the lander)
+            - pos (position vector, where self.pos.y represents the altitude)
+            - fitness (score reflecting how well the lander is performing)
+        :param dt: The time delta for the current simulation step.
+        """
         for star in self.stars:
             star['x'] -= star['speed'] * dt
             if star['x'] < 0:
@@ -78,6 +140,14 @@ class LunarLanderEnv:
                 star['y'] = random.randint(0, WINDOW_HEIGHT)
 
     def reset(self):
+        """
+        Resets the lander to its initial state.
+        :param self: The instance of the lander, containing its current state variables such as:
+            - vel (velocity vector, where self.vel.y represents the vertical speed)
+            - angle (current rotation angle of the lander)
+            - pos (position vector, where self.pos.y represents the altitude)
+            - fitness (score reflecting how well the lander is performing)
+        """
         self.pos = pygame.Vector2(WINDOW_WIDTH / 2, 100)
         self.vel = pygame.Vector2(0, 0)
         self.angle = random.uniform(0, RANDOMIZE_LANDER_ANGLE)
@@ -86,10 +156,15 @@ class LunarLanderEnv:
 
     def step(self, action, dt):
         """
-        action: tuple (rotate_left, rotate_right, thrust)
-        dt: delta time in secondi
+        Updates the lander's state for a single simulation step.
+        :param self: The instance of the lander, containing its current state variables such as:
+            - vel (velocity vector, where self.vel.y represents the vertical speed)
+            - angle (current rotation angle of the lander)
+            - pos (position vector, where self.pos.y represents the altitude)
+            - fitness (score reflecting how well the lander is performing)
+        :param action: tuple (rotate_left, rotate_right, thrust)
+        :param dt: The time delta for the current simulation step.
         """
-
         # Rotation
         if action[0]:
             self.angle += ROTATION_SPEED * dt
@@ -119,19 +194,10 @@ class LunarLanderEnv:
 
         verify_lander_crash(self)
 
-        # Encouraging speed velocity minor than MAX_SPEED_TO_LAND
-        if abs(self.vel.y) < MAX_SPEED_TO_LAND:
-            self.fitness += dt
-
-        # Encouraging angle minor than 15
-        if abs(self.angle % 360) < MAX_ANGLE_TO_LAND or abs((self.angle % 360) - 360) < MAX_ANGLE_TO_LAND:
-            self.fitness += dt
+        rewards_and_penalties(self, dt)
 
         if self.fitness < 0:
             self.fitness = 0
-
-        # Increases survival fitness (encouraging more time in flight)
-        self.fitness += dt
 
     def get_observation(self):
         """
@@ -140,6 +206,11 @@ class LunarLanderEnv:
         - Velocity x and y
         - sin(angle) and cos(angle) to represent the orientation
         - Altitude (distance from the platform)
+        :param self: The instance of the lander, containing its current state variables such as:
+            - vel (velocity vector, where self.vel.y represents the vertical speed)
+            - angle (current rotation angle of the lander)
+            - pos (position vector, where self.pos.y represents the altitude)
+            - fitness (score reflecting how well the lander is performing)
         """
         altitude = LANDING_PAD_TOP - (self.pos.y + self.height / 2)
         return [
@@ -153,8 +224,16 @@ class LunarLanderEnv:
         ]
 
     def render_game(self, screen, dt):
-        """Draw the game environment."""
-
+        """
+        Draw the game environment.
+        :param self: The instance of the lander, containing its current state variables such as:
+            - vel (velocity vector, where self.vel.y represents the vertical speed)
+            - angle (current rotation angle of the lander)
+            - pos (position vector, where self.pos.y represents the altitude)
+            - fitness (score reflecting how well the lander is performing)
+        :param screen: The game screen.
+        :param dt: The time delta for the current simulation step.
+        """
         self.update_stars(dt)
         screen.fill((255, 255, 255))
         star_surface = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)

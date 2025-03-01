@@ -7,6 +7,11 @@ from utils import LUNAR_MODEL_PATH, start_game_observation
 
 
 def run_winner(config_file, winner_path=LUNAR_MODEL_PATH):
+    """
+    Runs the Lunar Lander game simulation using the winning neural network model.
+    :param config_file: The file where the NEAT config is located.
+    :param winner_path: The file where the winning neural network model is located.
+    """
     config = neat.Config(
         neat.DefaultGenome,
         neat.DefaultReproduction,
@@ -23,7 +28,7 @@ def run_winner(config_file, winner_path=LUNAR_MODEL_PATH):
 
     pygame.init()
     pygame.display.set_icon(pygame.image.load('./game/images/icon.png'))
-    pygame.display.set_caption('Lunar Winner')
+    pygame.display.set_caption('Lunar')
     screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
     clock = pygame.time.Clock()
 
